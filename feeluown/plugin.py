@@ -91,7 +91,7 @@ class Plugin:
 
         .. versionadded: 3.7.15
         """
-        myconfig = Config()
+        myconfig = Config(name=self.name, parent=config)
 
         names = [self.name]
         # Currently, plugin name looks like fuo_xxx and xxx is the real name.
@@ -210,7 +210,7 @@ class PluginsManager:
                     .select(group='fuo.plugins_v1')
             except AttributeError:  # old version does not has `select` method
                 entry_points = importlib.metadata.entry_points() \
-                    .get('fuo.plugins_v1', [])
+                    .get('fuo.plugins_v1', [])  # pylint: disable=no-member
         except ImportError:
             import pkg_resources
             entry_points = pkg_resources.iter_entry_points('fuo.plugins_v1')
