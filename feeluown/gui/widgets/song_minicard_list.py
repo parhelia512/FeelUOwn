@@ -1,5 +1,6 @@
 import logging
 import random
+from typing import TYPE_CHECKING
 
 from PyQt5.QtCore import (
     pyqtSignal, Qt, QSize, QRect, QRectF,
@@ -7,17 +8,22 @@ from PyQt5.QtCore import (
 )
 from PyQt5.QtGui import (
     QPainter, QPixmap, QImage, QColor, QPalette, QBrush,
-    QFontMetrics, QTextOption,
+    QFontMetrics, QTextOption, QGuiApplication,
 )
 from PyQt5.QtWidgets import (
     QFrame, QListView, QStyle, QStyledItemDelegate
 )
 
 from feeluown.utils import aio
+from feeluown.utils.reader import create_reader
 from feeluown.library import reverse
 from feeluown.gui.helpers import (
-    ItemViewNoScrollMixin, ReaderFetchMoreMixin, resize_font, SOLARIZED_COLORS
+    ItemViewNoScrollMixin, ReaderFetchMoreMixin, resize_font, SOLARIZED_COLORS,
+    fetch_cover_wrapper,
 )
+
+if TYPE_CHECKING:
+    from feeluown.gui import GuiApp
 
 
 logger = logging.getLogger(__name__)
@@ -104,6 +110,11 @@ class SongMiniCardListModel(ReaderFetchMoreMixin, BaseSongMiniCardListModel):
         self._fetch_more_step = 10
         self._is_fetching = False
 
+    @classmethod
+    def create(cls, reader, app: 'GuiApp'):
+        return cls(create_reader(reader),
+                   fetch_image=fetch_cover_wrapper(app))
+
 
 class SongMiniCardListDelegate(QStyledItemDelegate):
     img_padding = 2
@@ -133,6 +144,8 @@ class SongMiniCardListDelegate(QStyledItemDelegate):
         self.card_bottom_padding = card_padding[3]
         self.card_left_padding = card_padding[0]
 
+        self._device_pixel_ratio = QGuiApplication.instance().devicePixelRatio()
+
     def item_sizehint(self) -> tuple:
         # HELP: listview needs about 20 spacing left on macOS
         width = max(self.view.width() - 20, self.card_min_width)
@@ -147,8 +160,10 @@ class SongMiniCardListDelegate(QStyledItemDelegate):
             (self.card_min_width + self.card_right_spacing)
         count = max(count, 1)
         item_width = (width - ((count + 1) * self.card_right_spacing)) // count
-        return (item_width,
-                self.card_height + self.card_top_padding + self.card_bottom_padding)
+        return (
+            item_width,
+            self.card_height + self.card_top_padding + self.card_bottom_padding
+        )
 
     def paint(self, painter, option, index):
         card_top_padding = self.card_top_padding
@@ -183,7 +198,7 @@ class SongMiniCardListDelegate(QStyledItemDelegate):
             painter.restore()
 
         painter.save()
-        painter.translate(rect.x() + card_left_padding,  rect.y() + card_top_padding)
+        painter.translate(rect.x() + card_left_padding, rect.y() + card_top_padding)
 
         if selected:
             text_color = option.palette.color(QPalette.HighlightedText)
@@ -200,8 +215,9 @@ class SongMiniCardListDelegate(QStyledItemDelegate):
         # Draw image.
         painter.save()
         painter.translate(0, img_padding)
-        self.paint_pixmap(painter, non_text_color, obj,
-                          cover_width, cover_height, border_radius)
+        self.paint_pixmap(
+            painter, non_text_color, obj, cover_width, cover_height, border_radius
+        )
         painter.restore()
 
         # Draw text.
@@ -214,16 +230,18 @@ class SongMiniCardListDelegate(QStyledItemDelegate):
         # Note this is not a bool object.
         is_enabled = option.state & QStyle.State_Enabled
         self.paint_text(
-            painter, is_enabled, title, subtitle, text_color, non_text_color,
-            text_width, card_height
+            painter, is_enabled, title, subtitle, text_color, non_text_color, text_width,
+            card_height
         )
         painter.restore()
 
         painter.restore()
 
-    def paint_text(self, painter, is_enabled, title, subtitle,
-                   text_color, non_text_color, text_width, text_height):
-        each_height = text_height//2
+    def paint_text(
+        self, painter, is_enabled, title, subtitle, text_color, non_text_color,
+        text_width, text_height
+    ):
+        each_height = text_height // 2
         text_option = QTextOption()
         text_option.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
@@ -248,8 +266,9 @@ class SongMiniCardListDelegate(QStyledItemDelegate):
         painter.setPen(non_text_color)
         painter.drawText(subtitle_rect, elided_title, text_option)
 
-    def paint_pixmap(self, painter, border_color, decoration,
-                     width, height, border_radius):
+    def paint_pixmap(
+        self, painter, border_color, decoration, width, height, border_radius
+    ):
         painter.setRenderHint(QPainter.Antialiasing)
         pen = painter.pen()
         pen.setColor(border_color)
@@ -258,11 +277,16 @@ class SongMiniCardListDelegate(QStyledItemDelegate):
             color = decoration
             brush = QBrush(color)
             painter.setBrush(brush)
-        else:
+        else:  # QImage
             if decoration.height() < decoration.width():
-                pixmap = decoration.scaledToHeight(height, Qt.SmoothTransformation)
+                pixmap = decoration.scaledToHeight(
+                    int(height * self._device_pixel_ratio), Qt.SmoothTransformation
+                )
             else:
-                pixmap = decoration.scaledToWidth(width, Qt.SmoothTransformation)
+                pixmap = decoration.scaledToWidth(
+                    int(width * self._device_pixel_ratio), Qt.SmoothTransformation
+                )
+            pixmap.setDevicePixelRatio(self._device_pixel_ratio)
             brush = QBrush(pixmap)
             painter.setBrush(brush)
         cover_rect = QRect(0, 0, width, height)

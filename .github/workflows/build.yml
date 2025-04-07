@@ -31,7 +31,7 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get update
-          sudo apt-get -y install libmpv1
+          sudo apt-get -y install libmpv2
 
       - name: Install macOS Dependencies
         if: startsWith(matrix.os, 'macos')
@@ -57,7 +57,7 @@ jobs:
           pip install --upgrade pip
           pip install pyqt5
           pip install "pytest<7.2"
-          pip install -e .[dev,cookies,webserver,ytdl]
+          pip install -e .[dev,cookies,webserver,ytdl,ai]
 
       - name: Install Python(macOS) Dependencies
         if: startsWith(matrix.os, 'macos')

@@ -1,6 +1,9 @@
+from typing import TYPE_CHECKING
+
 from PyQt5.QtCore import Qt, QModelIndex, QItemSelectionModel
 from PyQt5.QtWidgets import QMenu, QAbstractItemView
 
+from feeluown.player import PlaylistMode
 from feeluown.gui.components import SongMenuInitializer
 from feeluown.gui.helpers import fetch_cover_wrapper
 from feeluown.gui.widgets.song_minicard_list import (
@@ -8,6 +11,10 @@ from feeluown.gui.widgets.song_minicard_list import (
     SongMiniCardListModel,
 )
 from feeluown.utils.reader import create_reader
+
+
+if TYPE_CHECKING:
+    from feeluown.app.gui_app import GuiApp
 
 
 class PlayerPlaylistModel(SongMiniCardListModel):
@@ -51,7 +58,7 @@ class PlayerPlaylistView(SongMiniCardListView):
 
     _model = None
 
-    def __init__(self, app, *args, **kwargs):
+    def __init__(self, app: 'GuiApp', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._app = app
 
@@ -70,11 +77,15 @@ class PlayerPlaylistView(SongMiniCardListView):
 
         songs = [index.data(Qt.UserRole)[0] for index in indexes]
         menu = QMenu()
-        action = menu.addAction('从播放队列中移除')
+        if self._app.playlist.mode is PlaylistMode.fm:
+            btn_text = '不想听'
+        else:
+            btn_text = '从播放队列中移除'
+        action = menu.addAction(btn_text)
         action.triggered.connect(lambda: self._remove_songs(songs))
         if len(songs) == 1:
             menu.addSeparator()
-            SongMenuInitializer(self._app, songs).apply(menu)
+            SongMenuInitializer(self._app, songs[0]).apply(menu)
         menu.exec_(e.globalPos())
 
     def scroll_to_current_song(self):
@@ -91,4 +102,15 @@ class PlayerPlaylistView(SongMiniCardListView):
 
     def _remove_songs(self, songs):
         for song in songs:
-            self._app.playlist.remove(song)
+            playlist_songs = self._app.playlist.list()
+            if (
+                self._app.playlist.mode is PlaylistMode.fm
+                # playlist_songs should not be empty, just for robustness
+                and playlist_songs
+                and song == self._app.playlist.current_song
+                and playlist_songs[-1] == song
+            ):
+                self._app.show_msg("FM 模式下，如果当前歌曲是最后一首歌，则无法移除，请稍后再尝试移除", timeout=3000)
+                self._app.playlist.next()
+            else:
+                self._app.playlist.remove(song)

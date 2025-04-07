@@ -15,12 +15,13 @@ from feeluown.player import (
     PlaybackMode, Playlist, LiveLyric,
     FM, Player, RecentlyPlayed, PlayerPositionDelegate
 )
+from feeluown.collection import CollectionManager
 from feeluown.plugin import plugins_mgr
 from feeluown.version import VersionManager
 from feeluown.task import TaskManager
+from feeluown.alert import AlertManager
 
 from .mode import AppMode
-
 
 logger = logging.getLogger(__name__)
 
@@ -48,18 +49,41 @@ class App:
         self.started = Signal()  # App is ready to use, for example, UI is available.
         self.about_to_shutdown = Signal()
 
+        self.alert_mgr = AlertManager()
         self.request = Request()  # TODO: rename request to http
         self.version_mgr = VersionManager(self)
         self.task_mgr = TaskManager(self)
-
         # Library.
-        self.library = Library(config.PROVIDERS_STANDBY)
+        self.library = Library(
+            config.PROVIDERS_STANDBY,
+            config.ENABLE_AI_STANDBY_MATCHER
+        )
+        self.coll_mgr = CollectionManager(self)
+        self.ai = None
+        try:
+            from feeluown.ai import AI
+        except ImportError as e:
+            logger.warning(f"AI is not available, err: {e}")
+        else:
+            if (config.OPENAI_API_BASEURL and
+                    config.OPENAI_API_KEY and
+                    config.OPENAI_MODEL):
+                self.ai = AI(
+                    config.OPENAI_API_BASEURL,
+                    config.OPENAI_API_KEY,
+                    config.OPENAI_MODEL,
+                )
+                self.library.setup_ai(self.ai)
+            else:
+                logger.warning("AI is not available, no valid settings")
+
         if config.ENABLE_YTDL_AS_MEDIA_PROVIDER:
             try:
                 self.library.setup_ytdl(rules=config.YTDL_RULES)
             except ImportError as e:
                 logger.warning(f"can't enable ytdl as standby due to {e}")
             else:
+                logger.warning('ytdl-as-standby is deprecated since v4.1.9')
                 logger.info(f"enable ytdl as standby succeed"
                             f" with rules:{config.YTDL_RULES}")
         # TODO: initialization should be moved into initialize
@@ -89,12 +113,12 @@ class App:
         self.about_to_shutdown.connect(lambda _: self.dump_and_save_state(), weak=False)
 
     def initialize(self):
+        self.coll_mgr.scan()
+        self.alert_mgr.initialize(self)
         self.player_pos_per300ms.initialize()
         self.player_pos_per300ms.changed.connect(self.live_lyric.on_position_changed)
         self.playlist.song_changed.connect(self.live_lyric.on_song_changed,
                                            aioqueue=True)
-        self.player.media_loading_failed.connect(
-            lambda *args: self.show_msg('播放器加载资源失败'), weak=False, aioqueue=True)
         self.plugin_mgr.enable_plugins(self)
 
     def run(self):

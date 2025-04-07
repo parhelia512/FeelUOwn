@@ -1,5 +1,8 @@
 from abc import abstractmethod, ABC
-from typing import TYPE_CHECKING, runtime_checkable, Protocol, Dict, Optional, List
+from dataclasses import dataclass
+from typing import (
+    TYPE_CHECKING, runtime_checkable, Protocol, Dict, Optional, List, Callable, Any,
+)
 
 from PyQt5.QtCore import pyqtSignal, QObject
 
@@ -11,16 +14,33 @@ if TYPE_CHECKING:
     from feeluown.app.gui_app import GuiApp
 
 
+@dataclass
+class NavBtn:
+    icon: str
+    text: str
+    cb: Callable[[], Any]
+
+
 @runtime_checkable
 class UISupportsLoginOrGoHome(Protocol):
-
     @abstractmethod
     def login_or_go_home(self):
-        ...
+        """This method is called when the avatar is clicked.
+
+        Typically, ProviderUI can implement this method as follows:
+        - When no user is logged in, ProviderUI MAY show a login dialog.
+        - When a user is logged in, ProviderUI MAY show the homepage.
+          At the same time, ProviderUI MAY emit a login success event.
+        """
 
 
 @runtime_checkable
 class UISupportsLoginEvent(Protocol):
+    """
+    When the user is logged in, ProviderUI MAY emit a login success event.
+    This allows FeelUOwn to perform certain actions based on this event,
+    for example, fetching and show the user's playlist.
+    """
 
     @property
     @abstractmethod
@@ -41,6 +61,28 @@ class UISupportsDiscovery(Protocol):
 
     @abstractmethod
     def discovery(self):
+        ...
+
+
+@runtime_checkable
+class UISupportsNavBtns(Protocol):
+    """
+    Provider UI can add its own navigation buttons to the sidebar.
+    """
+
+    @abstractmethod
+    def list_nav_btns(self) -> List[NavBtn]:
+        ...
+
+
+@runtime_checkable
+class UISupportsCreatePlaylist(Protocol):
+    """
+    Provider UI can create playlist.
+    """
+
+    @abstractmethod
+    def create_playlist(self):
         ...
 
 

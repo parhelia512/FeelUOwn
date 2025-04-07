@@ -22,7 +22,7 @@ jobs:
         pip install pyqt5
         pip install pyinstaller
         pip install pyinstaller-versionfile
-        pip install -e .[win32,battery,cookies,ytdl]
+        pip install -e .[win32,battery,cookies,ytdl,ai]
     - name: Download mpv-1.dll
       run: |
         choco install curl
@@ -38,7 +38,7 @@ jobs:
         ls dist/
         powershell Compress-Archive dist/FeelUOwn dist/FeelUOwn-windows.zip
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: FeelUOwn-windows.zip
         path: dist/FeelUOwn-windows.zip

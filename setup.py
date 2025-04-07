@@ -30,11 +30,13 @@ setup(
     },
     python_requires=">=3.8",
     url='https://github.com/feeluown/FeelUOwn',
-    keywords=['media', 'player', 'application', 'PyQt5', 'Python 3'],
+    keywords=['media', 'player', 'application', 'PyQt5', 'music'],
     classifiers=[
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Programming Language :: Python :: 3 :: Only',
         'Environment :: X11 Applications :: Qt',
         "Topic :: Multimedia :: Sound/Audio",
@@ -67,6 +69,12 @@ setup(
                     # https://github.com/BruceZhang1993/feeluown-bilibili
                     'feeluown-bilibili>=0.4.1',
                     ],
+        'ai': [
+            'openai>=1.50',
+        ],
+        'qt': [
+            'PyQt5',
+        ],
         'macOS': [
             'aionowplaying>=0.10',
         ],
@@ -74,12 +82,12 @@ setup(
             'pyshortcuts',
             'aionowplaying>=0.10',
         ],
-        'webserver': ['sanic', 'websockets', 'json-rpc'],
+        'jsonrpc': ['json-rpc'],
+        'webserver': ['sanic', 'json-rpc'],
         'webengine': ['PyQtWebEngine'],
         # Load cookies from chrome/firefox/...
         'cookies': [
-            'secretstorage',
-            'pycryptodome',
+            'yt-dlp',
         ],
         'ytdl': [
             'yt-dlp',
